@@ -1,0 +1,185 @@
+# Trading Bot Configuration
+
+# Application Settings
+app:
+  name: "AI Trading Bot"
+  version: "1.0.0"
+  debug: true
+  log_level: "INFO"
+
+# Database Configuration
+database:
+  postgresql:
+    host: "localhost"
+    port: 5432
+    database: "trading_db"
+    username: "trading_user"
+    password: "trading_pass"
+    pool_size: 10
+    max_overflow: 20
+  
+  influxdb:
+    url: "http://localhost:8086"
+    token: "your-influxdb-token"
+    org: "trading-org"
+    bucket: "market-data"
+  
+  redis:
+    host: "localhost"
+    port: 6379
+    db: 0
+    password: null
+
+# Trading Configuration
+trading:
+  mode: "paper"  # paper, live
+  default_currency: "USD"
+  max_positions: 10
+  max_daily_trades: 100
+  
+  # Risk Management
+  risk:
+    max_position_size: 0.02  # 2% of account
+    max_daily_loss: 0.05     # 5% of account
+    max_drawdown: 0.15       # 15% of account
+    stop_loss_pct: 0.02      # 2% stop loss
+    take_profit_pct: 0.04    # 4% take profit
+
+# Strategy Configuration
+strategies:
+  ict:
+    enabled: true
+    timeframes: ["1m", "5m", "15m", "1h", "4h", "1d"]
+    kill_zones:
+      london: ["02:00", "05:00"]
+      new_york: ["07:00", "10:00"]
+      asian: ["20:00", "23:00"]
+    
+  smc:
+    enabled: true
+    timeframes: ["5m", "15m", "1h", "4h"]
+    confluence_required: 3
+    
+  scalping:
+    enabled: false
+    timeframe: "1m"
+    max_trade_duration: 300  # 5 minutes
+    
+  swing:
+    enabled: true
+    timeframes: ["4h", "1d"]
+    min_trade_duration: 3600  # 1 hour
+
+# Market Data Sources
+data_sources:
+  primary: "binance"
+  backup: "coinbase"
+  
+  binance:
+    api_key: "your-binance-api-key"
+    api_secret: "your-binance-api-secret"
+    sandbox: true
+    
+  coinbase:
+    api_key: "your-coinbase-api-key"
+    api_secret: "your-coinbase-api-secret"
+    passphrase: "your-coinbase-passphrase"
+    sandbox: true
+
+# External Integrations
+integrations:
+  tradingview:
+    username: "your-tradingview-username"
+    password: "your-tradingview-password"
+    webhook_url: "https://your-domain.com/webhook/tradingview"
+    
+  fusion_trading:
+    api_key: "your-fusion-api-key"
+    api_secret: "your-fusion-api-secret"
+    base_url: "https://api.fusiontrading.com"
+
+# News & Sentiment Analysis
+news:
+  sources:
+    - "reuters"
+    - "bloomberg"
+    - "cnbc"
+    - "marketwatch"
+  
+  sentiment:
+    model: "finbert"
+    threshold: 0.7
+    update_interval: 300  # 5 minutes
+
+# Machine Learning
+ml:
+  models:
+    price_prediction:
+      type: "lstm"
+      lookback_window: 60
+      prediction_horizon: 5
+      retrain_interval: 86400  # 24 hours
+      
+    sentiment_analysis:
+      type: "transformer"
+      model_name: "ProsusAI/finbert"
+      
+    pattern_recognition:
+      type: "cnn"
+      input_size: [100, 5]  # 100 candles, OHLCV
+
+# Monitoring & Alerting
+monitoring:
+  prometheus:
+    enabled: true
+    port: 9090
+    
+  grafana:
+    enabled: true
+    port: 3000
+    
+  alerts:
+    email:
+      enabled: true
+      smtp_server: "smtp.gmail.com"
+      smtp_port: 587
+      username: "your-email@gmail.com"
+      password: "your-app-password"
+      
+    discord:
+      enabled: true
+      webhook_url: "your-discord-webhook-url"
+      
+    telegram:
+      enabled: false
+      bot_token: "your-telegram-bot-token"
+      chat_id: "your-telegram-chat-id"
+
+# Backtesting
+backtesting:
+  start_date: "2020-01-01"
+  end_date: "2023-12-31"
+  initial_capital: 10000
+  commission: 0.001  # 0.1%
+  slippage: 0.0005   # 0.05%
+
+# API Configuration
+api:
+  host: "0.0.0.0"
+  port: 8000
+  cors_origins: ["http://localhost:3000", "http://localhost:8080"]
+  rate_limit: 100  # requests per minute
+  
+# Security
+security:
+  jwt_secret: "your-jwt-secret-key"
+  jwt_expiration: 3600  # 1 hour
+  api_key_header: "X-API-Key"
+  
+# Logging
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "logs/trading_bot.log"
+  max_size: "10MB"
+  backup_count: 5

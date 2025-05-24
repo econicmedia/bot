@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Debug</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #1e3c72; color: white; }
+        .debug-section { margin: 20px 0; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 8px; }
+        .api-test { margin: 10px 0; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 4px; }
+        .success { color: #4CAF50; }
+        .error { color: #f44336; }
+        button { padding: 10px 20px; margin: 5px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #45a049; }
+        pre { background: rgba(0,0,0,0.5); padding: 10px; border-radius: 4px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🔧 AI Trading Bot Dashboard Debug</h1>
+    
+    <div class="debug-section">
+        <h2>API Connectivity Test</h2>
+        <button onclick="testAllEndpoints()">Test All API Endpoints</button>
+        <div id="apiResults"></div>
+    </div>
+    
+    <div class="debug-section">
+        <h2>Live Data Test</h2>
+        <button onclick="startLiveTest()">Start Live Data Updates</button>
+        <button onclick="stopLiveTest()">Stop Live Data Updates</button>
+        <div id="liveResults"></div>
+    </div>
+    
+    <div class="debug-section">
+        <h2>Bot Control Test</h2>
+        <button onclick="testStartBot()">Test Start Bot</button>
+        <button onclick="testStopBot()">Test Stop Bot</button>
+        <button onclick="testBotStatus()">Test Bot Status</button>
+        <div id="botResults"></div>
+    </div>
+
+    <script>
+        const apiBase = '/api/v1';
+        let liveTestInterval = null;
+        
+        async function fetchAPI(endpoint) {
+            try {
+                const response = await fetch(`${apiBase}${endpoint}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return await response.json();
+            } catch (error) {
+                console.error(`API Error (${endpoint}):`, error);
+                throw error;
+            }
+        }
+        
+        async function postAPI(endpoint, data) {
+            try {
+                const response = await fetch(`${apiBase}${endpoint}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return await response.json();
+            } catch (error) {
+                console.error(`API Error (${endpoint}):`, error);
+                throw error;
+            }
+        }
+        
+        function displayResult(containerId, title, success, data) {
+            const container = document.getElementById(containerId);
+            const resultDiv = document.createElement('div');
+            resultDiv.className = 'api-test';
+            resultDiv.innerHTML = `
+                <strong class="${success ? 'success' : 'error'}">${title}</strong>
+                <pre>${JSON.stringify(data, null, 2)}</pre>
+            `;
+            container.appendChild(resultDiv);
+        }
+        
+        async function testAllEndpoints() {
+            const container = document.getElementById('apiResults');
+            container.innerHTML = '<p>Testing API endpoints...</p>';
+            
+            const endpoints = [
+                '/trading/status',
+                '/trading/positions', 
+                '/trading/trades',
+                '/strategies/',
+                '/analytics/performance',
+                '/analytics/risk-metrics',
+                '/analytics/portfolio-history',
+                '/bot/status'
+            ];
+            
+            for (const endpoint of endpoints) {
+                try {
+                    const data = await fetchAPI(endpoint);
+                    displayResult('apiResults', `✅ ${endpoint}`, true, data);
+                } catch (error) {
+                    displayResult('apiResults', `❌ ${endpoint}`, false, { error: error.message });
+                }
+            }
+        }
+        
+        async function startLiveTest() {
+            if (liveTestInterval) {
+                clearInterval(liveTestInterval);
+            }
+            
+            const container = document.getElementById('liveResults');
+            container.innerHTML = '<p>Starting live data updates...</p>';
+            
+            liveTestInterval = setInterval(async () => {
+                try {
+                    const [status, positions, trades] = await Promise.all([
+                        fetchAPI('/trading/status'),
+                        fetchAPI('/trading/positions'),
+                        fetchAPI('/trading/trades')
+                    ]);
+                    
+                    const timestamp = new Date().toLocaleTimeString();
+                    container.innerHTML = `
+                        <div class="api-test">
+                            <strong class="success">Live Update - ${timestamp}</strong>
+                            <h4>Status:</h4>
+                            <pre>${JSON.stringify(status, null, 2)}</pre>
+                            <h4>Positions (${positions.length}):</h4>
+                            <pre>${JSON.stringify(positions.slice(0, 2), null, 2)}</pre>
+                            <h4>Recent Trades (${trades.length}):</h4>
+                            <pre>${JSON.stringify(trades.slice(0, 2), null, 2)}</pre>
+                        </div>
+                    `;
+                } catch (error) {
+                    displayResult('liveResults', `❌ Live Update Failed`, false, { error: error.message });
+                }
+            }, 5000);
+        }
+        
+        function stopLiveTest() {
+            if (liveTestInterval) {
+                clearInterval(liveTestInterval);
+                liveTestInterval = null;
+                document.getElementById('liveResults').innerHTML = '<p>Live updates stopped.</p>';
+            }
+        }
+        
+        async function testStartBot() {
+            try {
+                const result = await postAPI('/bot/start', {});
+                displayResult('botResults', '✅ Start Bot', true, result);
+            } catch (error) {
+                displayResult('botResults', '❌ Start Bot Failed', false, { error: error.message });
+            }
+        }
+        
+        async function testStopBot() {
+            try {
+                const result = await postAPI('/bot/stop', {});
+                displayResult('botResults', '✅ Stop Bot', true, result);
+            } catch (error) {
+                displayResult('botResults', '❌ Stop Bot Failed', false, { error: error.message });
+            }
+        }
+        
+        async function testBotStatus() {
+            try {
+                const result = await fetchAPI('/bot/status');
+                displayResult('botResults', '✅ Bot Status', true, result);
+            } catch (error) {
+                displayResult('botResults', '❌ Bot Status Failed', false, { error: error.message });
+            }
+        }
+        
+        // Auto-start basic test
+        window.addEventListener('load', () => {
+            console.log('Debug page loaded, testing basic connectivity...');
+            testBotStatus();
+        });
+    </script>
+</body>
+</html>

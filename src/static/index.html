@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Trading Bot Dashboard</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Header -->
+        <header class="dashboard-header">
+            <div class="header-left">
+                <h1><i class="fas fa-robot"></i> AI Trading Bot</h1>
+                <span class="status-badge" id="systemStatus">
+                    <i class="fas fa-circle"></i> Active
+                </span>
+            </div>
+            <div class="header-right">
+                <div class="bot-controls">
+                    <button class="bot-control-btn start-btn" id="startBotBtn" onclick="startBot()">
+                        <i class="fas fa-play"></i> Start Bot
+                    </button>
+                    <button class="bot-control-btn stop-btn" id="stopBotBtn" onclick="stopBot()" style="display: none;">
+                        <i class="fas fa-stop"></i> Stop Bot
+                    </button>
+                    <div class="bot-status" id="botStatus">
+                        <i class="fas fa-circle status-indicator stopped"></i>
+                        <span class="status-text">Stopped</span>
+                    </div>
+                </div>
+                <div class="trading-mode">
+                    <span class="mode-label">Mode:</span>
+                    <span class="mode-value" id="tradingMode">Paper Trading</span>
+                </div>
+                <div class="last-update">
+                    <span id="lastUpdate">Last update: --</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Dashboard Grid -->
+        <main class="dashboard-main">
+            <!-- Portfolio Overview Cards -->
+            <section class="portfolio-overview">
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <h3>Total Portfolio Value</h3>
+                        <i class="fas fa-wallet"></i>
+                    </div>
+                    <div class="metric-value" id="totalValue">$0.00</div>
+                    <div class="metric-change" id="totalValueChange">+0.00%</div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <h3>Daily P&L</h3>
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <div class="metric-value" id="dailyPnl">$0.00</div>
+                    <div class="metric-change" id="dailyPnlChange">+0.00%</div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <h3>Active Positions</h3>
+                        <i class="fas fa-layer-group"></i>
+                    </div>
+                    <div class="metric-value" id="activePositions">0</div>
+                    <div class="metric-change" id="positionsChange">--</div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <h3>Win Rate</h3>
+                        <i class="fas fa-target"></i>
+                    </div>
+                    <div class="metric-value" id="winRate">0%</div>
+                    <div class="metric-change" id="winRateChange">--</div>
+                </div>
+            </section>
+
+            <!-- Portfolio Performance Chart -->
+            <section class="chart-section">
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <h3>Portfolio Performance</h3>
+                        <div class="chart-controls">
+                            <button class="chart-btn active" data-period="1D">1D</button>
+                            <button class="chart-btn" data-period="1W">1W</button>
+                            <button class="chart-btn" data-period="1M">1M</button>
+                        </div>
+                    </div>
+                    <canvas id="portfolioChart"></canvas>
+                </div>
+            </section>
+
+            <!-- Active Positions -->
+            <section class="positions-section">
+                <div class="section-header">
+                    <h3><i class="fas fa-layer-group"></i> Active Positions</h3>
+                    <button class="refresh-btn" onclick="refreshPositions()">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+                <div class="positions-table-container">
+                    <table class="positions-table" id="positionsTable">
+                        <thead>
+                            <tr>
+                                <th>Symbol</th>
+                                <th>Side</th>
+                                <th>Size</th>
+                                <th>Entry Price</th>
+                                <th>Current Price</th>
+                                <th>P&L</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="positionsTableBody">
+                            <!-- Positions will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Strategy Performance -->
+            <section class="strategies-section">
+                <div class="section-header">
+                    <h3><i class="fas fa-brain"></i> Strategy Performance</h3>
+                    <button class="refresh-btn" onclick="refreshStrategies()">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+                <div class="strategies-grid" id="strategiesGrid">
+                    <!-- Strategy cards will be loaded here -->
+                </div>
+            </section>
+
+            <!-- Recent Trades -->
+            <section class="trades-section">
+                <div class="section-header">
+                    <h3><i class="fas fa-exchange-alt"></i> Recent Trades</h3>
+                    <div class="section-controls">
+                        <select id="tradesFilter">
+                            <option value="">All Symbols</option>
+                            <option value="BTCUSDT">BTCUSDT</option>
+                            <option value="ETHUSDT">ETHUSDT</option>
+                            <option value="ADAUSDT">ADAUSDT</option>
+                        </select>
+                        <button class="refresh-btn" onclick="refreshTrades()">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="trades-table-container">
+                    <table class="trades-table" id="tradesTable">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Symbol</th>
+                                <th>Side</th>
+                                <th>Quantity</th>
+                                <th>Price</th>
+                                <th>Strategy</th>
+                                <th>P&L</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tradesTableBody">
+                            <!-- Trades will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Risk Metrics -->
+            <section class="risk-section">
+                <div class="section-header">
+                    <h3><i class="fas fa-shield-alt"></i> Risk Metrics</h3>
+                </div>
+                <div class="risk-metrics-grid">
+                    <div class="risk-metric">
+                        <span class="risk-label">Max Drawdown</span>
+                        <span class="risk-value" id="maxDrawdown">0%</span>
+                    </div>
+                    <div class="risk-metric">
+                        <span class="risk-label">Current Exposure</span>
+                        <span class="risk-value" id="currentExposure">$0</span>
+                    </div>
+                    <div class="risk-metric">
+                        <span class="risk-label">Leverage</span>
+                        <span class="risk-value" id="leverage">1.0x</span>
+                    </div>
+                    <div class="risk-metric">
+                        <span class="risk-label">Margin Ratio</span>
+                        <span class="risk-value" id="marginRatio">0%</span>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Trading Panel (Modal) -->
+        <div class="trading-modal" id="tradingModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Place Order</h3>
+                    <button class="close-btn" onclick="closeTradingModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="orderForm">
+                        <div class="form-group">
+                            <label for="orderSymbol">Symbol</label>
+                            <select id="orderSymbol" required>
+                                <option value="BTCUSDT">BTCUSDT</option>
+                                <option value="ETHUSDT">ETHUSDT</option>
+                                <option value="ADAUSDT">ADAUSDT</option>
+                                <option value="SOLUSDT">SOLUSDT</option>
+                                <option value="DOTUSDT">DOTUSDT</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="orderSide">Side</label>
+                            <select id="orderSide" required>
+                                <option value="buy">Buy</option>
+                                <option value="sell">Sell</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="orderQuantity">Quantity</label>
+                            <input type="number" id="orderQuantity" step="0.001" min="0.001" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="orderType">Order Type</label>
+                            <select id="orderType" required>
+                                <option value="market">Market</option>
+                                <option value="limit">Limit</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="priceGroup" style="display: none;">
+                            <label for="orderPrice">Price</label>
+                            <input type="number" id="orderPrice" step="0.01" min="0.01">
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn-secondary" onclick="closeTradingModal()">Cancel</button>
+                            <button type="submit" class="btn-primary">Place Order</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Floating Action Button -->
+        <button class="fab" onclick="openTradingModal()" title="Place Order">
+            <i class="fas fa-plus"></i>
+        </button>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.js"></script>
+    <script src="/static/dashboard.js"></script>
+</body>
+</html>
