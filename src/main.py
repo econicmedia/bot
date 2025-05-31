@@ -16,10 +16,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from core.config import get_settings
-from core.engine import TradingEngine
-from core.logger import setup_logging
-from api.routes import api_router
+from src.core.config import get_settings
+from src.core.engine import TradingEngine
+from src.core.logger import setup_logging
+from src.api.routes import api_router
 
 
 # Global trading engine instance
@@ -42,7 +42,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         await trading_engine.initialize()
 
         # Start background tasks for in-memory data
-        from core.memory_storage import get_memory_data_manager
+        from src.core.memory_storage import get_memory_data_manager
         data_manager = get_memory_data_manager()
         data_manager.start_background_tasks()
 

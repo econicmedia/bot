@@ -7,31 +7,50 @@ class TradingDashboard {
         this.refreshInterval = 5000; // 5 seconds
         this.refreshTimer = null;
 
+        // Initialization callbacks
+        this.onInitializationComplete = null;
+        this.onInitializationError = null;
+
         this.init();
     }
 
     async init() {
-        console.log('🚀 Initializing AI Trading Bot Dashboard...');
+        try {
+            console.log('🚀 Initializing AI Trading Bot Dashboard...');
 
-        // Initialize chart
-        this.initPortfolioChart();
+            // Initialize chart
+            this.initPortfolioChart();
 
-        // Initialize demo data first
-        await this.initializeDemoData();
+            // Initialize demo data first
+            await this.initializeDemoData();
 
-        // Load initial data
-        await this.loadDashboardData();
+            // Load initial data
+            await this.loadDashboardData();
 
-        // Load bot status
-        await this.loadBotStatus();
+            // Load bot status
+            await this.loadBotStatus();
 
-        // Start auto-refresh
-        this.startAutoRefresh();
+            // Start auto-refresh
+            this.startAutoRefresh();
 
-        // Setup event listeners
-        this.setupEventListeners();
+            // Setup event listeners
+            this.setupEventListeners();
 
-        console.log('✅ Dashboard initialized successfully');
+            console.log('✅ Dashboard initialized successfully');
+
+            // Call initialization complete callback
+            if (typeof this.onInitializationComplete === 'function') {
+                this.onInitializationComplete();
+            }
+
+        } catch (error) {
+            console.error('❌ Dashboard initialization failed:', error);
+
+            // Call initialization error callback
+            if (typeof this.onInitializationError === 'function') {
+                this.onInitializationError(error);
+            }
+        }
     }
 
     setupEventListeners() {
@@ -70,6 +89,8 @@ class TradingDashboard {
             this.updateBotStatus(status);
         } catch (error) {
             console.error('❌ Error loading bot status:', error);
+            // Set default status if API fails
+            this.updateBotStatus({ running: false });
         }
     }
 
@@ -238,31 +259,59 @@ class TradingDashboard {
 
     async updatePortfolioChart() {
         try {
+            console.log('📊 Fetching portfolio history data...');
             const portfolioHistory = await this.fetchAPI('/analytics/portfolio-history');
 
             if (!portfolioHistory || portfolioHistory.length === 0) {
-                console.warn('No portfolio history data available');
+                console.warn('⚠️ No portfolio history data available');
+                this.showChartError('No portfolio history data available');
                 return;
             }
+
+            console.log(`✅ Portfolio history loaded: ${portfolioHistory.length} entries`);
+            console.log('📊 Sample data:', portfolioHistory[0]);
 
             const labels = portfolioHistory.map(item =>
                 new Date(item.timestamp).toLocaleDateString()
             );
             const values = portfolioHistory.map(item => item.total_value);
 
-            this.portfolioChart.data.labels = labels;
-            this.portfolioChart.data.datasets[0].data = values;
-            this.portfolioChart.update();
+            if (this.portfolioChart) {
+                this.portfolioChart.data.labels = labels;
+                this.portfolioChart.data.datasets[0].data = values;
+                this.portfolioChart.update();
+                console.log('✅ Portfolio chart updated successfully');
+            } else {
+                console.warn('⚠️ Portfolio chart not initialized, cannot update');
+            }
 
         } catch (error) {
-            console.error('Error updating portfolio chart:', error);
+            console.error('❌ Error updating portfolio chart:', error);
+            this.showChartError(`Failed to load portfolio data: ${error.message}`);
         }
     }
 
     initPortfolioChart() {
-        const ctx = document.getElementById('portfolioChart').getContext('2d');
+        try {
+            // Check if Chart.js is available
+            if (typeof Chart === 'undefined') {
+                console.error('❌ Chart.js is not loaded. Cannot initialize portfolio chart.');
+                this.showChartError('Chart.js library not available');
+                return;
+            }
 
-        this.portfolioChart = new Chart(ctx, {
+            const chartElement = document.getElementById('portfolioChart');
+            if (!chartElement) {
+                console.error('❌ Portfolio chart canvas element not found.');
+                this.showChartError('Chart canvas element not found');
+                return;
+            }
+
+            const ctx = chartElement.getContext('2d');
+            console.log('🎯 Initializing portfolio chart...');
+            console.log('Chart.js version:', Chart.version);
+
+            this.portfolioChart = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: [],
@@ -315,6 +364,36 @@ class TradingDashboard {
                 }
             }
         });
+
+        console.log('✅ Portfolio chart initialized successfully');
+        } catch (error) {
+            console.error('❌ Error initializing portfolio chart:', error);
+            this.showChartError(`Chart initialization failed: ${error.message}`);
+        }
+    }
+
+    showChartError(message) {
+        console.error('Chart Error:', message);
+        const chartContainer = document.querySelector('.chart-container');
+        if (chartContainer) {
+            chartContainer.innerHTML = `
+                <div class="chart-header">
+                    <h3>Portfolio Performance</h3>
+                    <div class="chart-controls">
+                        <button class="chart-btn active" data-period="1D">1D</button>
+                        <button class="chart-btn" data-period="1W">1W</button>
+                        <button class="chart-btn" data-period="1M">1M</button>
+                    </div>
+                </div>
+                <div class="chart-error" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 300px; color: rgba(255,255,255,0.6); text-align: center;">
+                    <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #f44336; margin-bottom: 1rem;"></i>
+                    <p>${message}</p>
+                    <button onclick="location.reload()" style="margin-top: 1rem; padding: 0.5rem 1rem; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                        Retry
+                    </button>
+                </div>
+            `;
+        }
     }
 
     // API Helper Methods
@@ -507,21 +586,31 @@ class TradingDashboard {
 
     // Bot Control Functions
     updateBotStatus(status) {
-        const statusIndicator = document.querySelector('.status-indicator');
-        const statusText = document.querySelector('.status-text');
-        const startBtn = document.getElementById('startBotBtn');
-        const stopBtn = document.getElementById('stopBotBtn');
+        try {
+            const statusIndicator = document.querySelector('.status-indicator');
+            const statusText = document.querySelector('.status-text');
+            const startBtn = document.getElementById('startBotBtn');
+            const stopBtn = document.getElementById('stopBotBtn');
 
-        if (status.running) {
-            statusIndicator.className = 'fas fa-circle status-indicator running';
-            statusText.textContent = 'Running';
-            startBtn.style.display = 'none';
-            stopBtn.style.display = 'flex';
-        } else {
-            statusIndicator.className = 'fas fa-circle status-indicator stopped';
-            statusText.textContent = 'Stopped';
-            startBtn.style.display = 'flex';
-            stopBtn.style.display = 'none';
+            // Check if elements exist before updating
+            if (!statusIndicator || !statusText || !startBtn || !stopBtn) {
+                console.warn('⚠️ Bot status elements not found in DOM, skipping update');
+                return;
+            }
+
+            if (status.running) {
+                statusIndicator.className = 'fas fa-circle status-indicator running';
+                statusText.textContent = 'Running';
+                startBtn.style.display = 'none';
+                stopBtn.style.display = 'flex';
+            } else {
+                statusIndicator.className = 'fas fa-circle status-indicator stopped';
+                statusText.textContent = 'Stopped';
+                startBtn.style.display = 'flex';
+                stopBtn.style.display = 'none';
+            }
+        } catch (error) {
+            console.error('❌ Error updating bot status:', error);
         }
     }
 
@@ -547,37 +636,293 @@ class TradingDashboard {
     }
 }
 
-// Global functions for HTML onclick handlers
+// Global state management
+let dashboard = null;
+let dashboardReady = false;
+let initializationInProgress = false;
+
+// Utility function to check if dashboard is ready
+function isDashboardReady() {
+    const ready = dashboardReady &&
+                  dashboard &&
+                  typeof dashboard === 'object' &&
+                  typeof dashboard.startBot === 'function';
+
+    if (!ready) {
+        console.log('🔍 Dashboard readiness check failed:', {
+            dashboardReady: dashboardReady,
+            dashboard: typeof dashboard,
+            hasStartBot: dashboard && typeof dashboard.startBot === 'function'
+        });
+    }
+
+    return ready;
+}
+
+// Utility function to show user feedback
+function showInitializationError(action) {
+    console.error(`❌ Cannot ${action}: Dashboard not initialized`);
+
+    // Show a visual notification instead of alert
+    showNotification(`Dashboard is still loading. Please wait a moment and try again.`, 'warning');
+}
+
+// Visual notification system
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${type === 'error' ? '#f44336' : type === 'warning' ? '#ff9800' : '#4CAF50'};
+        color: white;
+        padding: 12px 16px;
+        border-radius: 4px;
+        font-size: 14px;
+        z-index: 10001;
+        max-width: 300px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        animation: slideIn 0.3s ease-out;
+    `;
+
+    notification.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <i class="fas fa-${type === 'error' ? 'exclamation-circle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle'}"></i>
+            <span>${message}</span>
+        </div>
+    `;
+
+    document.body.appendChild(notification);
+
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.style.animation = 'slideOut 0.3s ease-in';
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 300);
+        }
+    }, 5000);
+}
+
+// Safe wrapper for dashboard method calls
+function safeDashboardCall(methodName, ...args) {
+    console.log(`🔍 safeDashboardCall: ${methodName}`);
+    console.log('🔍 Dashboard state:', {
+        dashboard: typeof dashboard,
+        dashboardReady: dashboardReady,
+        initializationInProgress: initializationInProgress,
+        isDashboardReady: isDashboardReady()
+    });
+
+    if (isDashboardReady()) {
+        try {
+            if (typeof dashboard[methodName] === 'function') {
+                console.log(`✅ Calling dashboard.${methodName}()`);
+                return dashboard[methodName](...args);
+            } else {
+                console.error(`❌ Method dashboard.${methodName} is not a function:`, typeof dashboard[methodName]);
+                alert(`Method ${methodName} is not available. Please refresh the page.`);
+            }
+        } catch (error) {
+            console.error(`❌ Error calling dashboard.${methodName}:`, error);
+            alert(`An error occurred: ${error.message}. Please refresh the page and try again.`);
+        }
+    } else {
+        console.warn(`⚠️ Dashboard not ready for ${methodName}`);
+        showInitializationError(methodName);
+    }
+}
+
+// Global functions for HTML onclick handlers with safety checks
 function openTradingModal() {
-    dashboard.openTradingModal();
+    console.log('🔄 openTradingModal called');
+    safeDashboardCall('openTradingModal');
 }
 
 function closeTradingModal() {
-    dashboard.closeTradingModal();
+    console.log('🔄 closeTradingModal called');
+    safeDashboardCall('closeTradingModal');
 }
 
 function refreshPositions() {
-    dashboard.refreshPositions();
+    console.log('🔄 refreshPositions called');
+    safeDashboardCall('refreshPositions');
 }
 
 function refreshStrategies() {
-    dashboard.refreshStrategies();
+    console.log('🔄 refreshStrategies called');
+    safeDashboardCall('refreshStrategies');
 }
 
 function refreshTrades() {
-    dashboard.refreshTrades();
+    console.log('🔄 refreshTrades called');
+    safeDashboardCall('refreshTrades');
 }
 
 function startBot() {
-    dashboard.startBot();
+    console.log('🔄 startBot called - dashboard ready:', isDashboardReady());
+    safeDashboardCall('startBot');
 }
 
 function stopBot() {
-    dashboard.stopBot();
+    console.log('🔄 stopBot called - dashboard ready:', isDashboardReady());
+    safeDashboardCall('stopBot');
 }
 
+// Enhanced initialization with proper state management
+function initializeTradingDashboard() {
+    if (initializationInProgress) {
+        console.log('⏳ Dashboard initialization already in progress...');
+        return;
+    }
+
+    initializationInProgress = true;
+    console.log('🚀 Starting dashboard initialization...');
+
+    try {
+        // Disable interactive elements during initialization
+        disableInteractiveElements();
+
+        // Create dashboard instance
+        dashboard = new TradingDashboard();
+
+        // Set up initialization completion handler
+        dashboard.onInitializationComplete = () => {
+            dashboardReady = true;
+            initializationInProgress = false;
+            enableInteractiveElements();
+            console.log('✅ Dashboard fully initialized and ready for interaction');
+        };
+
+        dashboard.onInitializationError = (error) => {
+            dashboardReady = false;
+            initializationInProgress = false;
+            enableInteractiveElements();
+            console.error('❌ Dashboard initialization failed:', error);
+            showInitializationError('initialize dashboard');
+        };
+
+    } catch (error) {
+        console.error('❌ Critical error during dashboard initialization:', error);
+        initializationInProgress = false;
+        enableInteractiveElements();
+        alert('Failed to initialize dashboard. Please refresh the page.');
+    }
+}
+
+// Disable interactive elements during initialization
+function disableInteractiveElements() {
+    const interactiveElements = [
+        '#startBotBtn',
+        '#stopBotBtn',
+        '.bot-control-btn',
+        '.action-btn',
+        '.chart-btn'
+    ];
+
+    interactiveElements.forEach(selector => {
+        const elements = document.querySelectorAll(selector);
+        elements.forEach(element => {
+            element.disabled = true;
+            element.style.opacity = '0.6';
+            element.style.cursor = 'not-allowed';
+        });
+    });
+
+    // Add loading indicator to bot controls
+    const botControls = document.querySelector('.bot-controls');
+    if (botControls && !botControls.querySelector('.loading-indicator')) {
+        const loadingIndicator = document.createElement('div');
+        loadingIndicator.className = 'loading-indicator';
+        loadingIndicator.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Initializing...';
+        loadingIndicator.style.cssText = 'color: rgba(255,255,255,0.7); font-size: 0.9rem; margin-left: 1rem;';
+        botControls.appendChild(loadingIndicator);
+    }
+}
+
+// Enable interactive elements after initialization
+function enableInteractiveElements() {
+    const interactiveElements = [
+        '#startBotBtn',
+        '#stopBotBtn',
+        '.bot-control-btn',
+        '.action-btn',
+        '.chart-btn'
+    ];
+
+    interactiveElements.forEach(selector => {
+        const elements = document.querySelectorAll(selector);
+        elements.forEach(element => {
+            element.disabled = false;
+            element.style.opacity = '';
+            element.style.cursor = '';
+        });
+    });
+
+    // Remove loading indicator
+    const loadingIndicator = document.querySelector('.loading-indicator');
+    if (loadingIndicator) {
+        loadingIndicator.remove();
+    }
+}
+
+// Ensure global functions are available immediately
+console.log('🚀 Dashboard script loaded - setting up global functions');
+
+// Make sure global functions are available on window object for HTML onclick handlers
+window.startBot = startBot;
+window.stopBot = stopBot;
+window.openTradingModal = openTradingModal;
+window.closeTradingModal = closeTradingModal;
+window.refreshPositions = refreshPositions;
+window.refreshStrategies = refreshStrategies;
+window.refreshTrades = refreshTrades;
+
+console.log('✅ Global functions registered on window object');
+
+// Add a visual indicator to show script loading status
+const scriptStatus = document.createElement('div');
+scriptStatus.id = 'script-status';
+scriptStatus.style.cssText = `
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    background: #4CAF50;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    z-index: 10000;
+    font-family: monospace;
+`;
+scriptStatus.textContent = 'Dashboard Script Loaded ✅';
+document.body.appendChild(scriptStatus);
+
+// Remove the indicator after 3 seconds
+setTimeout(() => {
+    if (scriptStatus.parentNode) {
+        scriptStatus.parentNode.removeChild(scriptStatus);
+    }
+}, 3000);
+
 // Initialize dashboard when DOM is loaded
-let dashboard;
 document.addEventListener('DOMContentLoaded', () => {
-    dashboard = new TradingDashboard();
+    console.log('📄 DOM Content Loaded - starting dashboard initialization');
+    // Add a small delay to ensure all resources are loaded
+    setTimeout(initializeTradingDashboard, 100);
+});
+
+// Fallback initialization check
+window.addEventListener('load', () => {
+    console.log('🌐 Window Load event - checking dashboard status');
+    // If dashboard still not ready after page load, try again
+    setTimeout(() => {
+        if (!isDashboardReady() && !initializationInProgress) {
+            console.log('🔄 Fallback initialization attempt...');
+            initializeTradingDashboard();
+        }
+    }, 1000);
 });
